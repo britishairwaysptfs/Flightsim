@@ -7,7 +7,7 @@ const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  5000
 );
 
 // RENDERER
@@ -15,17 +15,30 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// LIGHT
+// LIGHTING
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-
 const sun = new THREE.DirectionalLight(0xffffff, 1);
-sun.position.set(10, 20, 10);
+sun.position.set(100, 200, 100);
 scene.add(sun);
 
-// GROUND (NO TEXTURES)
+// ==========================
+// OSM TILE AS GROUND
+// ==========================
+const loader = new THREE.TextureLoader();
+loader.crossOrigin = "anonymous";
+
+// Tile URL (Lisbon example)
+const tileURL = "https://tile.openstreetmap.org/14/8203/5300.png";
+
+// Load tile
+const mapTexture = loader.load(tileURL);
+
+mapTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+// Ground plane
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(500, 500),
-  new THREE.MeshStandardMaterial({ color: 0x228b22 })
+  new THREE.MeshStandardMaterial({ map: mapTexture })
 );
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
@@ -38,21 +51,17 @@ const plane = new THREE.Mesh(
 plane.position.y = 10;
 scene.add(plane);
 
-// CAMERA POSITION
-camera.position.set(0, 15, -25);
-camera.lookAt(plane.position);
-
 // CONTROLS
 const keys = {};
 window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
 let speed = 0;
+const maxSpeed = 1;
 
 function updatePlane() {
-  if (keys["w"]) speed += 0.01;
-  if (keys["s"]) speed -= 0.01;
-  speed = Math.max(0, Math.min(speed, 1));
+  if (keys["w"]) speed = Math.min(speed + 0.02, maxSpeed);
+  if (keys["s"]) speed = Math.max(speed - 0.02, 0);
 
   plane.translateZ(-speed);
 
@@ -64,8 +73,12 @@ function updatePlane() {
 
   // gravity
   plane.position.y -= 0.05;
-  if (plane.position.y < 5) plane.position.y = 5;
+  if (plane.position.y < 10) plane.position.y = 10;
 }
+
+// CAMERA FOLLOW
+camera.position.set(0, 20, -40);
+camera.lookAt(plane.position);
 
 // RESIZE
 window.addEventListener("resize", () => {
@@ -74,7 +87,7 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// LOOP
+// ANIMATION LOOP
 function animate() {
   requestAnimationFrame(animate);
 
@@ -83,10 +96,10 @@ function animate() {
   camera.position.lerp(
     new THREE.Vector3(
       plane.position.x,
-      plane.position.y + 15,
-      plane.position.z - 25
+      plane.position.y + 20,
+      plane.position.z - 40
     ),
-    0.1
+    0.08
   );
   camera.lookAt(plane.position);
 
