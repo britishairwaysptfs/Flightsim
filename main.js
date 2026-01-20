@@ -1,39 +1,127 @@
+// ==========================
+// BASIC SETUP
+// ==========================
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
+scene.background = new THREE.Color(0x87ceeb); // sky
 
-// Camera
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  2000
 );
 
-// Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Light
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(10, 20, 10);
-scene.add(light);
+// ==========================
+// LIGHTING
+// ==========================
+const sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(100, 200, 100);
+scene.add(sun);
 
-// Ground
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+// ==========================
+// FREE MAP (OpenStreetMap)
+// ==========================
+
+// Example tile (Lisbon area)
+const tileURL = "https://tile.openstreetmap.org/14/8203/5300.png";
+
+const loader = new THREE.TextureLoader();
+const mapTexture = loader.load(tileURL);
+mapTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(500, 500),
-  new THREE.MeshStandardMaterial({ color: 0x228B22 })
+  new THREE.PlaneGeometry(1000, 1000),
+  new THREE.MeshStandardMaterial({ map: mapTexture })
 );
+
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-// Plane
+// ==========================
+// PLANE
+// ==========================
 const plane = new THREE.Mesh(
   new THREE.BoxGeometry(2, 0.5, 4),
   new THREE.MeshStandardMaterial({ color: 0xff0000 })
 );
-plane.position.y = 5;
+
+plane.position.set(0, 10, 0);
 scene.add(plane);
+
+// ==========================
+// CONTROLS
+// ==========================
+const keys = {};
+window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+let speed = 0;
+const maxSpeed = 0.6;
+
+function updatePlane() {
+  // Throttle
+  if (keys["w"]) speed = Math.min(speed + 0.01, maxSpeed);
+  if (keys["s"]) speed = Math.max(speed - 0.01, 0);
+
+  // Movement
+  plane.translateZ(-speed);
+
+  // Rotation
+  if (keys["a"]) plane.rotation.y += 0.03;
+  if (keys["d"]) plane.rotation.y -= 0.03;
+
+  // Pitch
+  if (keys["arrowup"]) plane.rotation.x += 0.02;
+  if (keys["arrowdown"]) plane.rotation.x -= 0.02;
+
+  // Simple gravity
+  plane.position.y -= 0.02;
+  if (plane.position.y < 5) plane.position.y = 5;
+}
+
+// ==========================
+// CAMERA FOLLOW
+// ==========================
+camera.position.set(0, 15, -25);
+camera.lookAt(plane.position);
+
+// ==========================
+// RESIZE HANDLER
+// ==========================
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ==========================
+// ANIMATION LOOP
+// ==========================
+function animate() {
+  requestAnimationFrame(animate);
+
+  updatePlane();
+
+  camera.position.lerp(
+    new THREE.Vector3(
+      plane.position.x,
+      plane.position.y + 15,
+      plane.position.z - 25
+    ),
+    0.1
+  );
+  camera.lookAt(plane.position);
+
+  renderer.render(scene, camera);
+}
+
+animate();
 
 // Controls
 const keys = {};
