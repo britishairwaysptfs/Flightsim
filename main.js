@@ -1,43 +1,63 @@
 // ==========================
-// BASIC SETUP
+// SCENE
 // ==========================
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb); // sky
+scene.background = new THREE.Color(0x87ceeb); // sky blue
 
+// ==========================
+// CAMERA
+// ==========================
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
   0.1,
-  2000
+  5000
 );
 
+// ==========================
+// RENDERER
+// ==========================
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 // ==========================
 // LIGHTING
 // ==========================
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
 const sun = new THREE.DirectionalLight(0xffffff, 1);
 sun.position.set(100, 200, 100);
 scene.add(sun);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-
 // ==========================
-// FREE MAP (OpenStreetMap)
+// GROUND (FREE MAP FIXED)
 // ==========================
-
-// Example tile (Lisbon area)
-const tileURL = "https://tile.openstreetmap.org/14/8203/5300.png";
-
 const loader = new THREE.TextureLoader();
-const mapTexture = loader.load(tileURL);
-mapTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+loader.crossOrigin = "anonymous";
+
+// ⚠️ ArcGIS satellite tiles (FREE & CORS-FRIENDLY)
+const tileURL =
+  "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/14/5300/8203";
+
+const mapTexture = loader.load(
+  tileURL,
+  () => console.log("Map loaded"),
+  undefined,
+  () => console.warn("Map failed, using fallback")
+);
+
+mapTexture.colorSpace = THREE.SRGBColorSpace;
+
+const groundMaterial = new THREE.MeshStandardMaterial({
+  map: mapTexture,
+  color: 0x444444 // fallback color if texture fails
+});
 
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(1000, 1000),
-  new THREE.MeshStandardMaterial({ map: mapTexture })
+  new THREE.PlaneGeometry(2000, 2000),
+  groundMaterial
 );
 
 ground.rotation.x = -Math.PI / 2;
@@ -51,7 +71,7 @@ const plane = new THREE.Mesh(
   new THREE.MeshStandardMaterial({ color: 0xff0000 })
 );
 
-plane.position.set(0, 10, 0);
+plane.position.set(0, 20, 0);
 scene.add(plane);
 
 // ==========================
@@ -62,37 +82,33 @@ window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
 let speed = 0;
-const maxSpeed = 0.6;
+const maxSpeed = 1;
 
 function updatePlane() {
-  // Throttle
-  if (keys["w"]) speed = Math.min(speed + 0.01, maxSpeed);
-  if (keys["s"]) speed = Math.max(speed - 0.01, 0);
+  if (keys["w"]) speed = Math.min(speed + 0.02, maxSpeed);
+  if (keys["s"]) speed = Math.max(speed - 0.02, 0);
 
-  // Movement
   plane.translateZ(-speed);
 
-  // Rotation
   if (keys["a"]) plane.rotation.y += 0.03;
   if (keys["d"]) plane.rotation.y -= 0.03;
 
-  // Pitch
-  if (keys["arrowup"]) plane.rotation.x += 0.02;
-  if (keys["arrowdown"]) plane.rotation.x -= 0.02;
+  if (keys["arrowup"]) plane.position.y += 0.2;
+  if (keys["arrowdown"]) plane.position.y -= 0.2;
 
-  // Simple gravity
-  plane.position.y -= 0.02;
-  if (plane.position.y < 5) plane.position.y = 5;
+  // gravity
+  plane.position.y -= 0.05;
+  if (plane.position.y < 10) plane.position.y = 10;
 }
 
 // ==========================
 // CAMERA FOLLOW
 // ==========================
-camera.position.set(0, 15, -25);
+camera.position.set(0, 30, -60);
 camera.lookAt(plane.position);
 
 // ==========================
-// RESIZE HANDLER
+// RESIZE
 // ==========================
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -101,7 +117,7 @@ window.addEventListener("resize", () => {
 });
 
 // ==========================
-// ANIMATION LOOP
+// LOOP
 // ==========================
 function animate() {
   requestAnimationFrame(animate);
@@ -111,48 +127,10 @@ function animate() {
   camera.position.lerp(
     new THREE.Vector3(
       plane.position.x,
-      plane.position.y + 15,
-      plane.position.z - 25
+      plane.position.y + 30,
+      plane.position.z - 60
     ),
-    0.1
-  );
-  camera.lookAt(plane.position);
-
-  renderer.render(scene, camera);
-}
-
-animate();
-
-// Controls
-const keys = {};
-window.addEventListener("keydown", e => keys[e.key] = true);
-window.addEventListener("keyup", e => keys[e.key] = false);
-
-function updatePlane() {
-  if (keys["w"]) plane.translateZ(-0.15);
-  if (keys["s"]) plane.translateZ(0.1);
-  if (keys["a"]) plane.rotation.y += 0.03;
-  if (keys["d"]) plane.rotation.y -= 0.03;
-  if (keys["ArrowUp"]) plane.position.y += 0.05;
-  if (keys["ArrowDown"]) plane.position.y -= 0.05;
-}
-
-// Camera
-camera.position.set(0, 3, -10);
-camera.lookAt(plane.position);
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  updatePlane();
-
-  camera.position.lerp(
-    new THREE.Vector3(
-      plane.position.x,
-      plane.position.y + 3,
-      plane.position.z - 10
-    ),
-    0.1
+    0.08
   );
   camera.lookAt(plane.position);
 
